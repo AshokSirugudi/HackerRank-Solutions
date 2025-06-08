@@ -1,250 +1,241 @@
-import requests
+# sync_HR_portfolio.py - This script downloads Python/PyPy3 solutions from HackerRank.
+# It uses config.py for login and API interaction.
+
+import os
 import json
 import time
-import os
+import requests
+from dotenv import load_dotenv
+from config import login_hackerrank # Import the login function
 
-# --- Placeholder for your existing login_hackerrank function ---
-# You should have a function here (e.g., in config.py or imported)
-# that performs the login and returns an authenticated requests.Session object.
-# Example:
-# from config import login_hackerrank # Assuming login_hackerrank is in config.py
+# --- Configuration ---
+load_dotenv()
+HR_USERNAME = os.getenv("HR_USERNAME")
+HR_PASSWORD = os.getenv("HR_PASSWORD")
+OUTPUT_BASE_DIR = "submissions"
+LANGUAGES_TO_DOWNLOAD = ["python3", "pypy3"] # Specify the languages you want to download
 
-# This is a dummy/mock session for demonstration and testing purposes.
-# YOU MUST REPLACE 'session = MockSession()' with your actual authenticated session
-# obtained from your login function when running against HackerRank.
-class MockResponse:
-    def __init__(self, content, status_code=200):
-        self._content = json.dumps(content).encode('utf-8')
-        self.status_code = status_code
+# Base URL for fetching submission content
+# This URL structure is specific to HackerRank's submission API
+SUBMISSION_CONTENT_URL_TEMPLATE = "https://www.hackerrank.com/rest/submissions/{submission_id}/code"
+SUBMISSIONS_METADATA_URL = "https://www.hackerrank.com/rest/contests/master/submissions"
 
-    def json(self):
-        return json.loads(self._content.decode('utf-8'))
+def create_directory_structure(base_dir, lang_dir, problem_slug):
+    """Creates the necessary directory structure for saving code."""
+    path = os.path.join(base_dir, lang_dir, problem_slug)
+    os.makedirs(path, exist_ok=True)
+    return path
 
-    def raise_for_status(self):
-        if self.status_code >= 400:
-            raise requests.exceptions.HTTPError(f"HTTP error: {self.status_code}")
-
-class MockSession:
-    def get(self, url):
-        # Simulate pagination with a sample set of submissions
-        offset_param = int(url.split('offset=')[1].split('&')[0])
-        limit_param = int(url.split('limit=')[1])
-
-        all_mock_submissions = [
-            {"id": 432406583, "challenge_id": 56964, "contest_id": 1, "hacker_id": 28608756, "status": "Accepted", "kind": "code", "created_at": 1746927842, "language": "c", "hacker_username": None, "time_ago": "28 days", "in_contest_bounds": True, "status_code": 2, "score": "5.0", "is_preliminary_score": None, "challenge": {"name": "Sum and Difference of Two Numbers", "slug": "sum-numbers-c"}, "inserttime": 1746927842},
-            {"id": 432406262, "challenge_id": 57386, "contest_id": 1, "hacker_id": 28608756, "status": "Accepted", "kind": "code", "created_at": 1746927177, "language": "c", "hacker_username": None, "time_ago": "28 days", "in_contest_bounds": True, "status_code": 2, "score": "5.0", "is_preliminary_score": None, "challenge": {"name": "Playing With Characters", "slug": "playing-with-characters"}, "inserttime": 1746927177},
-            {"id": 426780351, "challenge_id": 672, "contest_id": 1, "hacker_id": 28608756, "status": "Accepted", "kind": "code", "created_at": 1742623741, "language": "python3", "hacker_username": None, "time_ago": "3 months", "in_contest_bounds": True, "status_code": 2, "score": "30.0", "is_preliminary_score": None, "challenge": {"name": "Smart IDE: Language Detection", "slug": "programming-language-detection"}, "inserttime": 1742623741},
-            {"id": 426780162, "challenge_id": 670, "contest_id": 1, "hacker_id": 28608756, "status": "Accepted", "kind": "code", "created_at": 1742623647, "language": "python3", "hacker_username": None, "time_ago": "3 months", "in_contest_bounds": True, "status_code": 1, "score": "20.0", "is_preliminary_score": None, "challenge": {"name": "Smart IDE: Identifying comments", "slug": "ide-identifying-comments"}, "inserttime": 1742623647},
-            {"id": 426779952, "challenge_id": 670, "contest_id": 1, "hacker_id": 28608756, "status": "Accepted", "kind": "code", "created_at": 1742623540, "language": "pypy3", "hacker_username": None, "time_ago": "3 months", "in_contest_bounds": True, "status_code": 2, "score": "20.0", "is_preliminary_score": None, "challenge": {"name": "Smart IDE: Identifying comments (PyPy)", "slug": "ide-identifying-comments-pypy"}, "inserttime": 1742623540},
-            {"id": 426776804, "challenge_id": 895, "contest_id": 1, "hacker_id": 28608756, "status": "Accepted", "kind": "code", "created_at": 1742621682, "language": "python3", "hacker_username": None, "time_ago": "3 months", "in_contest_bounds": True, "status_code": 2, "score": "15.0", "is_preliminary_score": None, "challenge": {"name": "Detect Email Addresses", "slug": "detect-the-email-addresses"}, "inserttime": 1742621682},
-            {"id": 426776672, "challenge_id": 733, "contest_id": 1, "hacker_id": 28608756, "status": "Accepted", "kind": "code", "created_at": 1742621586, "language": "pypy3", "hacker_username": None, "time_ago": "3 months", "in_contest_bounds": True, "status_code": 2, "score": "15.0", "is_preliminary_score": None, "challenge": {"name": "Find a Word (PyPy)", "slug": "find-a-word-pypy"}, "inserttime": 1742621587},
-        ]
-        
-        total_mock_submissions = 78
-
-        start_index = offset_param
-        end_index = offset_param + limit_param
-        
-        paginated_models = all_mock_submissions[start_index:min(end_index, len(all_mock_submissions))]
-        
-        mock_response_content = {
-            "models": paginated_models,
-            "total": total_mock_submissions
-        }
-        
-        return MockResponse(mock_response_content)
-
-    def get_submission_code(self, submission_id):
-        # Simulate fetching code content for a given submission ID
-        # In a real scenario, this would be an API call like:
-        # self.get(f"https://www.hackerrank.com/rest/contests/master/submissions/{submission_id}/code")
-        
-        mock_code_content = {
-            426780351: "# Sample Python 3 code for Language Detection\nprint('Hello World - Python')",
-            426780162: "# Sample Python 3 code for Identifying comments\ndef main():\n    # This is a comment\n    print('Code with comments')",
-            426779952: "# Sample PyPy 3 code for Identifying comments (PyPy)\n# Another comment\nprint('PyPy code')",
-            426776804: "# Sample Python 3 code for Detect Email Addresses\nimport re\nemail_regex = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}'",
-            426776672: "# Sample PyPy 3 code for Find a Word (PyPy)\n# Simple search algorithm\nword = 'example'",
-            # Add more mock code for other submission IDs if needed for testing
-        }.get(submission_id, f"# No mock code available for submission ID: {submission_id}")
-        
-        return MockResponse({"code": mock_code_content})
-
-
-def fetch_all_target_language_submissions_metadata(session, limit_per_page=50):
+def fetch_all_submissions_metadata(session, language_filters=None):
     """
-    Fetches metadata for all Python 3 and PyPy 3 submissions from HackerRank, handling pagination.
-    
-    Args:
-        session (requests.Session): An authenticated requests session object.
-        limit_per_page (int): The number of submissions to fetch per API call.
-        
-    Returns:
-        list: A list of dictionaries, where each dictionary is the metadata for a submission.
+    Fetches all submission metadata by leveraging the 'total' count for pagination,
+    as 'has_next' is not provided by the API.
     """
-    all_target_language_submissions = []
-    total_submissions = -1 
-    offset = 0
-    
-    # Define the languages of interest based on your requirement
-    languages_of_interest = ["python3", "pypy3"] 
+    print("Fetching all submission metadata...")
+    all_submissions = []
+    total_expected_submissions = -1 # Initialize, will be set from the first response
+    page = 1
 
-    print("Starting to fetch all HackerRank submissions metadata...")
+    while True: # Loop indefinitely, will break when all submissions are fetched
+        params = {"offset": (page - 1) * 10, "limit": 10} # Fetch 10 submissions per page
 
-    while total_submissions == -1 or offset < total_submissions:
-        submissions_url = f"https://www.hackerrank.com/rest/contests/master/submissions?offset={offset}&limit={limit_per_page}"
-        
-        print(f"Fetching page: offset={offset}, limit={limit_per_page}")
-        
         try:
-            response = session.get(submissions_url)
-            response.raise_for_status()
+            response = session.get(SUBMISSIONS_METADATA_URL, params=params, timeout=30)
+            response.raise_for_status() # Raise an exception for bad status codes
             
             data = response.json()
             
-            if "models" not in data or not isinstance(data["models"], list):
-                print("Error: 'models' key not found or not a list in response.")
-                break 
+            # --- DEBUG: Raw Metadata for Page X - REMOVED FOR CLEAN OUTPUT ---
+            # print(f"\n--- DEBUG: Raw Metadata for Page {page} ---")
+            # print(json.dumps(data, indent=2))
+            # print("-------------------------------------------\n")
 
-            if total_submissions == -1:
-                total_submissions = data.get("total", 0)
-                print(f"Discovered total submissions: {total_submissions}")
-                if total_submissions == 0:
-                    print("No submissions found. Exiting.")
-                    break
+            submissions_on_page = data.get('models', [])
+            current_page_total_count = data.get('total', 0)
 
-            # Filter for the target languages and add to our list
-            for submission in data["models"]:
-                if submission.get("language") in languages_of_interest:
-                    all_target_language_submissions.append(submission)
+            # Set total_expected_submissions on the very first page fetch
+            if total_expected_submissions == -1:
+                total_expected_submissions = current_page_total_count
+                print(f"API reported total submissions available: {total_expected_submissions}")
+
+
+            if not submissions_on_page:
+                # If no submissions were returned on this page and we haven't reached the expected total,
+                # it suggests an issue or end of submissions.
+                if len(all_submissions) < total_expected_submissions:
+                    print(f"Warning: Fetched page {page} but received no new submissions, and haven't reached total expected ({total_expected_submissions}). Breaking pagination loop prematurely.")
+                break # No more submissions from this point, break the loop
+
+            all_submissions.extend(submissions_on_page)
             
-            # Move to the next page
-            offset += limit_per_page
+            # Per-page info (optional, can be removed if not needed)
+            # print(f"Fetched page {page} with {len(submissions_on_page)} submissions. Total fetched so far: {len(all_submissions)}")
             
+            # Check if we have fetched all expected submissions
+            # This is the most reliable way to determine when to stop given the 'total' field.
+            if len(all_submissions) >= total_expected_submissions:
+                print(f"All {total_expected_submissions} submissions fetched according to API total. Breaking pagination loop.")
+                break
+
+            page += 1
+            time.sleep(1) # Be polite and avoid hitting rate limits
+
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching submissions page at offset {offset}: {e}")
-            break 
-        except json.JSONDecodeError:
-            print(f"Error decoding JSON response at offset {offset}. Response: {response.text[:200]}...")
+            print(f"HTTP Error fetching metadata: {response.status_code if 'response' in locals() else 'N/A'} - {response.text if 'response' in locals() else e}")
+            print(f"Failed to fetch submissions metadata for page {page}. Stopping pagination due to error.")
             break
+        except json.JSONDecodeError as e:
+            print(f"JSON Decode Error fetching metadata: {e}. Response was: {response.text}")
+            print(f"Failed to decode JSON for page {page}. Stopping pagination due to error.")
+            break
+
+    # Filter by language after fetching all available submissions
+    if language_filters:
+        initial_total_fetched = len(all_submissions)
+        filtered_submissions = [
+            sub for sub in all_submissions 
+            if sub.get('language') in language_filters
+        ]
+        print(f"Found {len(filtered_submissions)} {', '.join(language_filters)} submissions after filtering from {initial_total_fetched} total fetched.")
+        return filtered_submissions
+    
+    return all_submissions
+
+def download_code_file(session, submission_id, language_dir, problem_slug, problem_name, status):
+    """Downloads a single code file and saves it."""
+    url = SUBMISSION_CONTENT_URL_TEMPLATE.format(submission_id=submission_id)
+    
+    try:
+        response = session.get(url, timeout=30)
+        response.raise_for_status()
         
-    print(f"\nFinished fetching. Total Python3/PyPy3 submissions found: {len(all_target_language_submissions)}")
-    return all_target_language_submissions
+        code_content = response.text
 
-# --- Main execution block ---
-if __name__ == "__main__":
-    # --- IMPORTANT: Replace the MockSession with your actual login logic ---
-    # Example:
-    # from your_login_module import login_hackerrank # if login is in another file
-    # authenticated_session = login_hackerrank(username, password) # Pass your actual credentials securely
+        if code_content:
+            # Clean problem_name for filename (remove invalid characters)
+            cleaned_problem_name = "".join([c for c in problem_name if c.isalnum() or c in (' ', '-', '_')]).strip()
+            cleaned_problem_name = cleaned_problem_name.replace(' ', '_')
+            if not cleaned_problem_name: # Fallback if cleaning results in empty string
+                cleaned_problem_name = f"submission_{submission_id}"
 
-    # For now, using the MockSession for testing the metadata fetching logic
-    # Make sure to replace this with your actual authenticated session object
-    authenticated_session = MockSession() 
+            # Create path
+            save_dir = create_directory_structure(OUTPUT_BASE_DIR, language_dir, cleaned_problem_name)
+            
+            # Use submission ID and status in filename to avoid overwrites and provide context
+            filename = os.path.join(save_dir, f"{cleaned_problem_name}_{submission_id}_{status}.{language_dir.replace('python3', 'py').replace('pypy3', 'py')}")
+            
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(code_content)
+            # print(f"Downloaded: {filename}") # Keep this print for confirmation of individual downloads
+            return True # Indicate successful download
+        else:
+            print(f"No code content found for submission {submission_id}.")
+            return False
+    except requests.exceptions.RequestException as e:
+        print(f"HTTP Error downloading {submission_id}: {e}")
+        # print(f"Response status code: {response.status_code if 'response' in locals() else 'N/A'}") # Optional debug
+        # print(f"Response content (on error): {response.text if 'response' in locals() else 'N/A'}") # Optional debug
+        return False
+    except Exception as e:
+        print(f"An unexpected error occurred downloading submission {submission_id}: {e}")
+        return False
+
+def main():
+    if not HR_USERNAME or not HR_PASSWORD:
+        print("Error: HR_USERNAME or HR_PASSWORD environment variables are not set.")
+        print("Please set them in your .env file or environment.")
+        return
+
+    # --- Run summary variables ---
+    total_submissions_api = 0
+    python_pypy_submissions_found = 0
+    files_downloaded = 0
+    download_errors = 0
+    
+    start_time = time.time()
+
+    authenticated_session = login_hackerrank(HR_USERNAME, HR_PASSWORD)
 
     if authenticated_session:
-        all_submissions_metadata = fetch_all_target_language_submissions_metadata(authenticated_session)
+        print("Fetching and processing submissions...")
         
-        if all_submissions_metadata:
-            print("\n--- First 5 Python3/PyPy3 Submissions Metadata Sample (from fetched data) ---")
-            for i, submission in enumerate(all_submissions_metadata[:5]):
-                print(f"Submission {i+1}:")
-                print(f"  ID: {submission.get('id')}")
-                print(f"  Problem: {submission.get('challenge', {}).get('name')} ({submission.get('challenge', {}).get('slug')})")
-                print(f"  Language: {submission.get('language')}")
-                print(f"  Status: {submission.get('status')}")
-                print("-" * 30)
+        # Fetch all submissions metadata (this function already returns filtered submissions)
+        all_submissions_metadata = fetch_all_submissions_metadata(authenticated_session, LANGUAGES_TO_DOWNLOAD)
+        
+        # Capture total submissions from API from the first page's response for summary
+        # This is for reporting purposes only, the pagination loop in fetch_all_submissions_metadata
+        # already handles the total count internally.
+        try:
+            first_page_response = authenticated_session.get(SUBMISSIONS_METADATA_URL, params={"offset": 0, "limit": 10}, timeout=10)
+            first_page_response.raise_for_status()
+            first_page_data = first_page_response.json()
+            total_submissions_api = first_page_data.get('total', 0)
+        except Exception as e:
+            print(f"Could not retrieve total submissions from API for summary: {e}")
+            total_submissions_api = len(all_submissions_metadata) # Fallback to count of fetched filtered data
+
+
+        # Save raw metadata for the filtered submissions to JSON for inspection
+        metadata_output_dir = os.path.join(OUTPUT_BASE_DIR, "_".join(LANGUAGES_TO_DOWNLOAD))
+        os.makedirs(metadata_output_dir, exist_ok=True)
+        metadata_filepath = os.path.join(metadata_output_dir, "all_submissions_metadata.json")
+        with open(metadata_filepath, 'w', encoding='utf-8') as f:
+            json.dump(all_submissions_metadata, f, indent=4)
+        print(f"Metadata for {len(all_submissions_metadata)} filtered submissions saved to {metadata_filepath}")
+        
+        # Update count for summary
+        python_pypy_submissions_found = len(all_submissions_metadata)
+
+
+        print("Starting download of Python/PyPy3 code files...")
+        for submission in all_submissions_metadata:
+            submission_id = submission.get('id')
+            language = submission.get('language')
+            status = submission.get('status', 'Unknown')
             
-            # --- LOCAL STORAGE: Saving Metadata (Commit 2) ---
-            current_script_dir = os.path.dirname(os.path.abspath(__file__))
-            base_submissions_dir = os.path.join(current_script_dir, "submissions", "python_pypy3")
-            
-            os.makedirs(base_submissions_dir, exist_ok=True)
-            print(f"\nSubmissions directory ensured: {base_submissions_dir}")
+            challenge_info = submission.get('challenge', {})
+            problem_name = challenge_info.get('name')
+            problem_slug = challenge_info.get('slug')
 
-            metadata_file_path = os.path.join(base_submissions_dir, "all_submissions_metadata.json")
-            
-            try:
-                with open(metadata_file_path, 'w', encoding='utf-8') as f:
-                    json.dump(all_submissions_metadata, f, indent=4)
-                print(f"All Python3/PyPy3 submission metadata saved to: {metadata_file_path}")
-            except IOError as e:
-                print(f"Error saving metadata to file: {e}")
-
-            # --- Start of New Code for Commit 3: Downloading Actual Code Files ---
-
-            # Load the metadata to process.
-            # This step ensures robustness if this part of the script were run independently
-            # or if the 'all_submissions_metadata' variable was not directly available.
-            processed_metadata = []
-            try:
-                with open(metadata_file_path, 'r', encoding='utf-8') as f:
-                    processed_metadata = json.load(f)
-                print(f"Successfully loaded {len(processed_metadata)} submissions from metadata file.")
-            except FileNotFoundError:
-                print(f"Error: Metadata file not found at {metadata_file_path}. Cannot proceed with code download.")
-                processed_metadata = []
-            except json.JSONDecodeError:
-                print(f"Error: Could not decode JSON from {metadata_file_path}. File might be corrupted.")
-                processed_metadata = []
-
-            if not processed_metadata:
-                print("No submissions metadata found or loaded to process for code download.")
-            else:
-                print("\nInitiating download of individual code files...")
-                # Iterate through each submission's metadata to download its code
-                for submission in processed_metadata:
-                    submission_id = submission.get('id')
-                    challenge_slug = submission.get('challenge', {}).get('slug')
-                    language = submission.get('language')
-                    
-                    if not submission_id or not challenge_slug or not language:
-                        print(f"Skipping malformed metadata entry: {submission}")
-                        continue
-                    
-                    # Determine the file extension based on the submission language
-                    file_extension = ".py" 
-                    
-                    # Construct the problem-specific directory path
-                    problem_dir = os.path.join(base_submissions_dir, challenge_slug)
-                    
-                    # Create the problem-specific directory if it doesn't exist
-                    os.makedirs(problem_dir, exist_ok=True)
-                    
-                    # Define the full path for the code file
-                    code_file_path = os.path.join(problem_dir, f"{submission_id}{file_extension}")
-                    
-                    # Fetch the actual code content for the submission
-                    print(f"  Downloading code for {challenge_slug} (ID: {submission_id})...")
-                    try:
-                        # In a real scenario, this would be:
-                        # code_url = f"https://www.hackerrank.com/rest/contests/master/submissions/{submission_id}/code"
-                        # code_response = authenticated_session.get(code_url)
-                        # code_response.raise_for_status() # Raise an HTTPError for bad responses (4xx or 5xx)
-                        # submission_code = code_response.json().get('code', '')
-
-                        # Using MockSession's get_submission_code for demonstration
-                        code_response = authenticated_session.get_submission_code(submission_id)
-                        submission_code = code_response.json().get('code', '')
-
-                        if submission_code:
-                            with open(code_file_path, 'w', encoding='utf-8') as code_file:
-                                code_file.write(submission_code)
-                            print(f"    Saved code to {code_file_path}")
-                        else:
-                            print(f"    No code found for submission ID: {submission_id}")
-                    except requests.exceptions.RequestException as e:
-                        print(f"  Error fetching code for submission ID {submission_id}: {e}")
-                    except json.JSONDecodeError:
-                        print(f"  Error decoding JSON response for submission ID {submission_id}.")
-                    except IOError as e:
-                        print(f"  Error saving code file for submission ID {submission_id}: {e}")
-                    time.sleep(1) # Be respectful: Add a small delay between requests
-
-            print("\nFinished downloading all available code files.")
-            # --- End of New Code for Commit 3: Downloading Actual Code Files ---
-
-        else:
-            print("No Python3/PyPy3 submissions metadata fetched.")
+            # This check is technically redundant here because all_submissions_metadata
+            # already contains only filtered languages, but harmless.
+            if submission_id and language and problem_name and problem_slug and language in LANGUAGES_TO_DOWNLOAD:
+                language_dir = language
+                # Removed detailed download attempt print, keeping just the confirmation below
+                # print(f"Attempting to download submission {submission_id} (Problem: {problem_name}, Lang: {language})...")
+                if download_code_file(authenticated_session, submission_id, language_dir, problem_slug, problem_name, status):
+                    files_downloaded += 1
+                    print(f"Downloaded {language_dir}\\{problem_name}\\{problem_name}_{submission_id}_{status}.{language_dir.replace('python3', 'py').replace('pypy3', 'py')}")
+                else:
+                    download_errors += 1
+                time.sleep(0.5)
+            # The 'else' block for skipping irrelevant submissions is removed as the list is already filtered
+            # else:
+            #     print(f"Skipping submission {submission_id} (Problem: {problem_name}, Language: {language}) - internal filter issue or missing info.")
+        
+        print(f"Code file download process completed. Downloaded {files_downloaded} files with {download_errors} errors.")
     else:
-        print("Authentication failed. Cannot proceed with code download.")
+        print("Login failed. Cannot proceed with fetching submissions.")
+
+    end_time = time.time()
+    duration = end_time - start_time
+
+    # --- Generate Summary ---
+    summary_filename = os.path.join(OUTPUT_BASE_DIR, f"run_summary_{time.strftime('%Y%m%d-%H%M%S')}.txt")
+    with open(summary_filename, 'w', encoding='utf-8') as f:
+        f.write(f"--- HackerRank Submission Downloader Summary ---\n")
+        f.write(f"Run Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Duration: {duration:.2f} seconds\n")
+        f.write(f"--------------------------------------------------\n")
+        f.write(f"API Reported Total Submissions (all languages): {total_submissions_api}\n")
+        f.write(f"Python/PyPy3 Submissions Found (after filtering): {python_pypy_submissions_found}\n")
+        f.write(f"Files Successfully Downloaded: {files_downloaded}\n")
+        f.write(f"Download Errors/Skipped (Python/PyPy3): {download_errors}\n")
+        f.write(f"Output Directory: {os.path.abspath(OUTPUT_BASE_DIR)}\n")
+        f.write(f"Metadata File for Filtered Submissions: {os.path.abspath(metadata_filepath)}\n")
+        f.write(f"--------------------------------------------------\n")
+    print(f"\nRun summary saved to: {summary_filename}")
+
+
+if __name__ == "__main__":
+    main()
