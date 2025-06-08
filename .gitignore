@@ -2,6 +2,7 @@
 venv/
 .venv/
 __pycache__/
+*.pyc
 
 # Log files
 *.log
@@ -15,3 +16,9 @@ __pycache__/
 
 # Ignore all generated submission files and their directories
 submissions/
+
+# Specific temporary debug/output files generated during development/testing
+current_login_page_dump.html
+login_debug_output.txt
+login_debug_output_2.txt
+playwright_login_fail.png
