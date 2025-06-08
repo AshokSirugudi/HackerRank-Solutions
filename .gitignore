@@ -1,4 +1,17 @@
-.env
-*.log
+# Python virtual environment
 venv/
+.venv/
 __pycache__/
+
+# Log files
+*.log
+
+# IDE files
+.vscode/
+.idea/
+
+# Environment variables file
+.env
+
+# Ignore all generated submission files and their directories
+submissions/
