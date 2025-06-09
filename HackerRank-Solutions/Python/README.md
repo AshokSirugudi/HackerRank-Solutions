@@ -1,0 +1,80 @@
+# HackerRank Solutions Portfolio
+
+This repository contains my solutions to various HackerRank problems, categorized by language.
+
+## Python / PyPy3 Solutions
+
+- [Alien Username](./alien-username/README.md) - Status: Wrong Answer, Score: 1.82
+- [Alien Username](./alien-username/README.md) - Status: Wrong Answer, Score: 1.82
+- [Alien Username](./alien-username/README.md) - Status: Accepted, Score: 10.0
+- [Alien Username](./alien-username/README.md) - Status: Accepted, Score: 10.0
+- [Arithmetic Operators](./python-arithmetic-operators/README.md) - Status: Accepted, Score: 10.0
+- [Building a Smart IDE: Identifying comments](./ide-identifying-comments/README.md) - Status: Accepted, Score: 20.0
+- [Building a Smart IDE: Identifying comments](./ide-identifying-comments/README.md) - Status: Accepted, Score: 20.0
+- [Building a Smart IDE: Programming Language Detection](./programming-language-detection/README.md) - Status: Accepted, Score: 30.0
+- [Capitalize!](./capitalize/README.md) - Status: Wrong Answer, Score: 4.0
+- [Capitalize!](./capitalize/README.md) - Status: Wrong Answer, Score: 4.0
+- [Capitalize!](./capitalize/README.md) - Status: Wrong Answer, Score: 4.0
+- [Capitalize!](./capitalize/README.md) - Status: Accepted, Score: 20.0
+- [Capitalize!](./capitalize/README.md) - Status: Accepted, Score: 20.0
+- [collections.Counter()](./collections-counter/README.md) - Status: Accepted, Score: 10.0
+- [Collections.namedtuple()](./py-collections-namedtuple/README.md) - Status: Accepted, Score: 20.0
+- [Collections.OrderedDict()](./py-collections-ordereddict/README.md) - Status: Accepted, Score: 20.0
+- [Company Logo](./most-commons/README.md) - Status: Accepted, Score: 30.0
+- [Compress the String! ](./compress-the-string/README.md) - Status: Accepted, Score: 20.0
+- [DefaultDict Tutorial](./defaultdict-tutorial/README.md) - Status: Accepted, Score: 20.0
+- [Designer Door Mat](./designer-door-mat/README.md) - Status: Accepted, Score: 10.0
+- [Detect HTML Attributes](./html-attributes/README.md) - Status: Wrong Answer, Score: 16.0
+- [Detect HTML Attributes](./html-attributes/README.md) - Status: Wrong Answer, Score: 12.0
+- [Detect HTML Attributes](./html-attributes/README.md) - Status: Accepted, Score: 20.0
+- [Detect HTML Tags](./detect-html-tags/README.md) - Status: Accepted, Score: 10.0
+- [Detect the Email Addresses](./detect-the-email-addresses/README.md) - Status: Accepted, Score: 15.0
+- [Find a string](./find-a-string/README.md) - Status: Accepted, Score: 10.0
+- [Find A Sub-Word](./find-substring/README.md) - Status: Accepted, Score: 10.0
+- [Find a Word](./find-a-word/README.md) - Status: Wrong Answer, Score: 1.5
+- [Find a Word](./find-a-word/README.md) - Status: Accepted, Score: 15.0
+- [Find the Runner-Up Score!  ](./find-second-maximum-number-in-a-list/README.md) - Status: Accepted, Score: 10.0
+- [Finding the percentage](./finding-the-percentage/README.md) - Status: Accepted, Score: 10.0
+- [Finding the percentage](./finding-the-percentage/README.md) - Status: Accepted, Score: 10.0
+- [IP Address Validation](./ip-address-validation/README.md) - Status: Accepted, Score: 10.0
+- [Iterables and Iterators](./iterables-and-iterators/README.md) - Status: Accepted, Score: 40.0
+- [itertools.combinations()](./itertools-combinations/README.md) - Status: Accepted, Score: 10.0
+- [itertools.combinations_with_replacement()](./itertools-combinations-with-replacement/README.md) - Status: Accepted, Score: 10.0
+- [itertools.product()](./itertools-product/README.md) - Status: Accepted, Score: 10.0
+- [List Comprehensions](./list-comprehensions/README.md) - Status: Accepted, Score: 10.0
+- [Lists](./python-lists/README.md) - Status: Accepted, Score: 10.0
+- [Loops](./python-loops/README.md) - Status: Accepted, Score: 10.0
+- [Map and Lambda Function](./map-and-lambda-expression/README.md) - Status: Accepted, Score: 20.0
+- [Matching Anything But a Newline](./matching-anything-but-new-line/README.md) - Status: Accepted, Score: 5.0
+- [Matching Anything But a Newline](./matching-anything-but-new-line/README.md) - Status: Accepted, Score: 5.0
+- [Matching Digits & Non-Digit Characters](./matching-digits-non-digit-character/README.md) - Status: Accepted, Score: 5.0
+- [Matching Digits & Non-Digit Characters](./matching-digits-non-digit-character/README.md) - Status: Accepted, Score: 5.0
+- [Matching Specific String](./matching-specific-string/README.md) - Status: Accepted, Score: 5.0
+- [Matching Specific String](./matching-specific-string/README.md) - Status: Accepted, Score: 5.0
+- [Matching Start & End](./matching-start-end/README.md) - Status: Accepted, Score: 5.0
+- [Matching Whitespace & Non-Whitespace Character](./matching-whitespace-non-whitespace-character/README.md) - Status: Accepted, Score: 5.0
+- [Maximize It!](./maximize-it/README.md) - Status: Accepted, Score: 50.0
+- [Merge the Tools!](./merge-the-tools/README.md) - Status: Accepted, Score: 40.0
+- [Negative Lookbehind](./negative-lookbehind/README.md) - Status: Accepted, Score: 20.0
+- [Nested Lists](./nested-list/README.md) - Status: Accepted, Score: 10.0
+- [No Idea!](./no-idea/README.md) - Status: Terminated due to timeout, Score: 21.43
+- [No Idea!](./no-idea/README.md) - Status: Terminated due to timeout, Score: 21.43
+- [No Idea!](./no-idea/README.md) - Status: Terminated due to timeout, Score: 21.43
+- [No Idea!](./no-idea/README.md) - Status: Terminated due to timeout, Score: 21.43
+- [No Idea!](./no-idea/README.md) - Status: Wrong Answer, Score: 0.0
+- [No Idea!](./no-idea/README.md) - Status: Accepted, Score: 50.0
+- [Print Function](./python-print/README.md) - Status: Accepted, Score: 20.0
+- [Python If-Else](./py-if-else/README.md) - Status: Accepted, Score: 10.0
+- [Python: Division](./python-division/README.md) - Status: Accepted, Score: 10.0
+- [Reduce Function](./reduce-function/README.md) - Status: Accepted, Score: 30.0
+- [Say "Hello, World!" With Python](./py-hello-world/README.md) - Status: Accepted, Score: 5.0
+- [Set .symmetric_difference() Operation](./py-set-symmetric-difference-operation/README.md) - Status: Accepted, Score: 10.0
+- [sWAP cASE](./swap-case/README.md) - Status: Accepted, Score: 10.0
+- [The Minion Game](./the-minion-game/README.md) - Status: Accepted, Score: 40.0
+- [Tuples ](./python-tuples/README.md) - Status: Accepted, Score: 10.0
+- [Validating Email Addresses With a Filter ](./validate-list-of-email-address-with-filter/README.md) - Status: Accepted, Score: 20.0
+- [Validating Email Addresses With a Filter ](./validate-list-of-email-address-with-filter/README.md) - Status: Accepted, Score: 20.0
+- [What's Your Name?](./whats-your-name/README.md) - Status: Wrong Answer, Score: 0.0
+- [What's Your Name?](./whats-your-name/README.md) - Status: Accepted, Score: 10.0
+- [Word Order](./word-order/README.md) - Status: Accepted, Score: 50.0
+- [Write a function](./write-a-function/README.md) - Status: Accepted, Score: 10.0

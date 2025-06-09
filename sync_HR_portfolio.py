@@ -5,6 +5,7 @@ import os
 import json
 import time
 import requests
+import re 
 from dotenv import load_dotenv
 from config import login_hackerrank # Import the login function
 
@@ -12,17 +13,41 @@ from config import login_hackerrank # Import the login function
 load_dotenv()
 HR_USERNAME = os.getenv("HR_USERNAME")
 HR_PASSWORD = os.getenv("HR_PASSWORD")
-OUTPUT_BASE_DIR = "submissions"
-LANGUAGES_TO_DOWNLOAD = ["python3", "pypy3"] # Specify the languages you want to download
+OUTPUT_BASE_DIR = "submissions" # This is where the raw data (code + metadata.json) will go
+
+# --- NEW: Consolidated folder name ---
+CONSOLIDATED_LANG_FOLDER = "python3_pypy3" 
+# Filter languages to download (still used by fetch_all_submissions_metadata)
+LANGUAGES_TO_DOWNLOAD = ["python3", "pypy3"] 
 
 # Base URL for fetching submission content
 # This URL structure is specific to HackerRank's submission API
 SUBMISSION_CONTENT_URL_TEMPLATE = "https://www.hackerrank.com/rest/submissions/{submission_id}/code"
 SUBMISSIONS_METADATA_URL = "https://www.hackerrank.com/rest/contests/master/submissions"
 
-def create_directory_structure(base_dir, lang_dir, problem_slug):
-    """Creates the necessary directory structure for saving code."""
-    path = os.path.join(base_dir, lang_dir, problem_slug)
+# Ensure the main output directory exists
+os.makedirs(OUTPUT_BASE_DIR, exist_ok=True)
+
+# --- Helper function to sanitize names for file/folder paths ---
+def sanitize_filename(name):
+    """Sanitizes a string to be suitable for use in filenames/paths."""
+    if not isinstance(name, str):
+        name = str(name)
+    s = re.sub(r'[<>:"/\\|?*]', '', name) # Remove invalid characters
+    s = s.replace(' ', '-')              # Replace spaces with hyphens
+    s = re.sub(r'-+', '-', s)            # Replace multiple hyphens with single
+    s = s.strip('-')                     # Remove leading/trailing hyphens
+    if not s: # Fallback for empty or invalid names
+        return "untitled"
+    return s.lower() # Consistent lowercase for problem slugs/folder names
+
+# --- Modified Directory Creation (to create submissions/python3_pypy3/submission_id/) ---
+def create_submission_directory_structure(base_dir, consolidated_lang_folder_name, submission_id):
+    """
+    Creates the necessary directory structure for saving code and metadata:
+    base_dir/consolidated_lang_folder_name/submission_id/
+    """
+    path = os.path.join(base_dir, consolidated_lang_folder_name, str(submission_id))
     os.makedirs(path, exist_ok=True)
     return path
 
@@ -33,52 +58,38 @@ def fetch_all_submissions_metadata(session, language_filters=None):
     """
     print("Fetching all submission metadata...")
     all_submissions = []
-    total_expected_submissions = -1 # Initialize, will be set from the first response
+    total_expected_submissions = -1 
     page = 1
 
-    while True: # Loop indefinitely, will break when all submissions are fetched
-        params = {"offset": (page - 1) * 10, "limit": 10} # Fetch 10 submissions per page
+    while True:
+        params = {"offset": (page - 1) * 10, "limit": 10}
 
         try:
             response = session.get(SUBMISSIONS_METADATA_URL, params=params, timeout=30)
-            response.raise_for_status() # Raise an exception for bad status codes
+            response.raise_for_status() 
             
             data = response.json()
             
-            # --- DEBUG: Raw Metadata for Page X - REMOVED FOR CLEAN OUTPUT ---
-            # print(f"\n--- DEBUG: Raw Metadata for Page {page} ---")
-            # print(json.dumps(data, indent=2))
-            # print("-------------------------------------------\n")
-
             submissions_on_page = data.get('models', [])
             current_page_total_count = data.get('total', 0)
 
-            # Set total_expected_submissions on the very first page fetch
             if total_expected_submissions == -1:
                 total_expected_submissions = current_page_total_count
                 print(f"API reported total submissions available: {total_expected_submissions}")
 
-
             if not submissions_on_page:
-                # If no submissions were returned on this page and we haven't reached the expected total,
-                # it suggests an issue or end of submissions.
                 if len(all_submissions) < total_expected_submissions:
                     print(f"Warning: Fetched page {page} but received no new submissions, and haven't reached total expected ({total_expected_submissions}). Breaking pagination loop prematurely.")
-                break # No more submissions from this point, break the loop
+                break 
 
             all_submissions.extend(submissions_on_page)
             
-            # Per-page info (optional, can be removed if not needed)
-            # print(f"Fetched page {page} with {len(submissions_on_page)} submissions. Total fetched so far: {len(all_submissions)}")
-            
-            # Check if we have fetched all expected submissions
-            # This is the most reliable way to determine when to stop given the 'total' field.
             if len(all_submissions) >= total_expected_submissions:
                 print(f"All {total_expected_submissions} submissions fetched according to API total. Breaking pagination loop.")
                 break
 
             page += 1
-            time.sleep(1) # Be polite and avoid hitting rate limits
+            time.sleep(1)
 
         except requests.exceptions.RequestException as e:
             print(f"HTTP Error fetching metadata: {response.status_code if 'response' in locals() else 'N/A'} - {response.text if 'response' in locals() else e}")
@@ -89,7 +100,6 @@ def fetch_all_submissions_metadata(session, language_filters=None):
             print(f"Failed to decode JSON for page {page}. Stopping pagination due to error.")
             break
 
-    # Filter by language after fetching all available submissions
     if language_filters:
         initial_total_fetched = len(all_submissions)
         filtered_submissions = [
@@ -101,56 +111,18 @@ def fetch_all_submissions_metadata(session, language_filters=None):
     
     return all_submissions
 
-def download_code_file(session, submission_id, language_dir, problem_slug, problem_name, status):
-    """Downloads a single code file and saves it."""
-    url = SUBMISSION_CONTENT_URL_TEMPLATE.format(submission_id=submission_id)
-    
-    try:
-        response = session.get(url, timeout=30)
-        response.raise_for_status()
-        
-        code_content = response.text
-
-        if code_content:
-            # Clean problem_name for filename (remove invalid characters)
-            cleaned_problem_name = "".join([c for c in problem_name if c.isalnum() or c in (' ', '-', '_')]).strip()
-            cleaned_problem_name = cleaned_problem_name.replace(' ', '_')
-            if not cleaned_problem_name: # Fallback if cleaning results in empty string
-                cleaned_problem_name = f"submission_{submission_id}"
-
-            # Create path
-            save_dir = create_directory_structure(OUTPUT_BASE_DIR, language_dir, cleaned_problem_name)
-            
-            # Use submission ID and status in filename to avoid overwrites and provide context
-            filename = os.path.join(save_dir, f"{cleaned_problem_name}_{submission_id}_{status}.{language_dir.replace('python3', 'py').replace('pypy3', 'py')}")
-            
-            with open(filename, 'w', encoding='utf-8') as f:
-                f.write(code_content)
-            # print(f"Downloaded: {filename}") # Keep this print for confirmation of individual downloads
-            return True # Indicate successful download
-        else:
-            print(f"No code content found for submission {submission_id}.")
-            return False
-    except requests.exceptions.RequestException as e:
-        print(f"HTTP Error downloading {submission_id}: {e}")
-        # print(f"Response status code: {response.status_code if 'response' in locals() else 'N/A'}") # Optional debug
-        # print(f"Response content (on error): {response.text if 'response' in locals() else 'N/A'}") # Optional debug
-        return False
-    except Exception as e:
-        print(f"An unexpected error occurred downloading submission {submission_id}: {e}")
-        return False
-
 def main():
     if not HR_USERNAME or not HR_PASSWORD:
         print("Error: HR_USERNAME or HR_PASSWORD environment variables are not set.")
         print("Please set them in your .env file or environment.")
         return
-
+    
     # --- Run summary variables ---
     total_submissions_api = 0
     python_pypy_submissions_found = 0
     files_downloaded = 0
     download_errors = 0
+    metadata_files_saved = 0
     
     start_time = time.time()
 
@@ -159,12 +131,8 @@ def main():
     if authenticated_session:
         print("Fetching and processing submissions...")
         
-        # Fetch all submissions metadata (this function already returns filtered submissions)
         all_submissions_metadata = fetch_all_submissions_metadata(authenticated_session, LANGUAGES_TO_DOWNLOAD)
         
-        # Capture total submissions from API from the first page's response for summary
-        # This is for reporting purposes only, the pagination loop in fetch_all_submissions_metadata
-        # already handles the total count internally.
         try:
             first_page_response = authenticated_session.get(SUBMISSIONS_METADATA_URL, params={"offset": 0, "limit": 10}, timeout=10)
             first_page_response.raise_for_status()
@@ -172,48 +140,94 @@ def main():
             total_submissions_api = first_page_data.get('total', 0)
         except Exception as e:
             print(f"Could not retrieve total submissions from API for summary: {e}")
-            total_submissions_api = len(all_submissions_metadata) # Fallback to count of fetched filtered data
+            total_submissions_api = len(all_submissions_metadata) 
 
-
-        # Save raw metadata for the filtered submissions to JSON for inspection
-        metadata_output_dir = os.path.join(OUTPUT_BASE_DIR, "_".join(LANGUAGES_TO_DOWNLOAD))
-        os.makedirs(metadata_output_dir, exist_ok=True)
-        metadata_filepath = os.path.join(metadata_output_dir, "all_submissions_metadata.json")
-        with open(metadata_filepath, 'w', encoding='utf-8') as f:
-            json.dump(all_submissions_metadata, f, indent=4)
-        print(f"Metadata for {len(all_submissions_metadata)} filtered submissions saved to {metadata_filepath}")
-        
-        # Update count for summary
         python_pypy_submissions_found = len(all_submissions_metadata)
 
-
-        print("Starting download of Python/PyPy3 code files...")
+        print(f"Starting download of code files and saving metadata into '{CONSOLIDATED_LANG_FOLDER}' folder...")
         for submission in all_submissions_metadata:
             submission_id = submission.get('id')
-            language = submission.get('language')
+            language = submission.get('language') # e.g., 'python3', 'pypy3'
             status = submission.get('status', 'Unknown')
-            
             challenge_info = submission.get('challenge', {})
             problem_name = challenge_info.get('name')
-            problem_slug = challenge_info.get('slug')
+            problem_slug = challenge_info.get('slug') 
+            
+            score = submission.get('score', 'N/A')
+            submitted_at = submission.get('submitted_at', 'N/A') 
 
-            # This check is technically redundant here because all_submissions_metadata
-            # already contains only filtered languages, but harmless.
             if submission_id and language and problem_name and problem_slug and language in LANGUAGES_TO_DOWNLOAD:
-                language_dir = language
-                # Removed detailed download attempt print, keeping just the confirmation below
-                # print(f"Attempting to download submission {submission_id} (Problem: {problem_name}, Lang: {language})...")
-                if download_code_file(authenticated_session, submission_id, language_dir, problem_slug, problem_name, status):
-                    files_downloaded += 1
-                    print(f"Downloaded {language_dir}\\{problem_name}\\{problem_name}_{submission_id}_{status}.{language_dir.replace('python3', 'py').replace('pypy3', 'py')}")
-                else:
+                # --- Get Code Content ---
+                code_content_url = SUBMISSION_CONTENT_URL_TEMPLATE.format(submission_id=submission_id)
+                code_content = None
+                try:
+                    code_response = authenticated_session.get(code_content_url, timeout=30)
+                    code_response.raise_for_status()
+                    code_content = code_response.text
+                except requests.exceptions.RequestException as e:
+                    print(f"HTTP Error downloading code for submission {submission_id}: {e}")
                     download_errors += 1
-                time.sleep(0.5)
-            # The 'else' block for skipping irrelevant submissions is removed as the list is already filtered
-            # else:
-            #     print(f"Skipping submission {submission_id} (Problem: {problem_name}, Language: {language}) - internal filter issue or missing info.")
+                    continue
+                except Exception as e:
+                    print(f"An unexpected error occurred getting code for submission {submission_id}: {e}")
+                    download_errors += 1
+                    continue
+
+                if not code_content:
+                    print(f"No code content found for submission {submission_id}, skipping.")
+                    download_errors += 1
+                    continue
+
+                # --- Modified: Create specific directory for this submission under the consolidated folder ---
+                # This creates: submissions/python3_pypy3/submission_id/
+                submission_save_path = create_submission_directory_structure(
+                    OUTPUT_BASE_DIR, 
+                    CONSOLIDATED_LANG_FOLDER, # Use the new consolidated folder name
+                    submission_id
+                )
+                
+                # Define filename for the code (e.g., problem-slug_submission_id_status.py)
+                sanitized_problem_slug = sanitize_filename(problem_slug)
+                # Use problem_slug directly for filename consistency, combined with submission_id and status
+                code_filename = f"{sanitized_problem_slug}_{submission_id}_{sanitize_filename(status)}.py"
+                code_file_path = os.path.join(submission_save_path, code_filename)
+                
+                # --- Save the code file ---
+                if not os.path.exists(code_file_path): 
+                    with open(code_file_path, "w", encoding="utf-8") as f:
+                        f.write(code_content)
+                    print(f"Saved code to: {code_file_path}")
+                    files_downloaded += 1
+                else:
+                    print(f"Code already exists, skipping: {code_file_path}")
+
+                # --- Prepare and save the metadata JSON file ---
+                metadata_content = {
+                    "problem_title": problem_name,
+                    "problem_slug": problem_slug, 
+                    "submission_id": submission_id,
+                    "submission_status": status,
+                    "score": score,
+                    "submission_timestamp": submitted_at, 
+                    "language": language, # Keep original 'python3' or 'pypy3' in metadata
+                    "code_filename": code_filename,
+                    "problem_url": f"https://www.hackerrank.com/challenges/{problem_slug}/problem"
+                }
+
+                metadata_file_path = os.path.join(submission_save_path, "metadata.json")
+                
+                with open(metadata_file_path, "w", encoding="utf-8") as f:
+                    json.dump(metadata_content, f, indent=4)
+                print(f"Saved metadata to: {metadata_file_path}")
+                metadata_files_saved += 1
+                
+                time.sleep(0.5) 
+
+            else:
+                print(f"Skipping submission due to missing info or unexpected language: ID={submission_id}, Lang={language}, Problem={problem_name}")
+                download_errors += 1
         
-        print(f"Code file download process completed. Downloaded {files_downloaded} files with {download_errors} errors.")
+        print(f"Code file download and metadata saving process completed. Downloaded {files_downloaded} files, saved {metadata_files_saved} metadata files with {download_errors} errors.")
     else:
         print("Login failed. Cannot proceed with fetching submissions.")
 
@@ -229,10 +243,10 @@ def main():
         f.write(f"--------------------------------------------------\n")
         f.write(f"API Reported Total Submissions (all languages): {total_submissions_api}\n")
         f.write(f"Python/PyPy3 Submissions Found (after filtering): {python_pypy_submissions_found}\n")
-        f.write(f"Files Successfully Downloaded: {files_downloaded}\n")
-        f.write(f"Download Errors/Skipped (Python/PyPy3): {download_errors}\n")
+        f.write(f"Code Files Successfully Downloaded: {files_downloaded}\n")
+        f.write(f"Metadata Files Successfully Saved: {metadata_files_saved}\n")
+        f.write(f"Download/Processing Errors: {download_errors}\n")
         f.write(f"Output Directory: {os.path.abspath(OUTPUT_BASE_DIR)}\n")
-        f.write(f"Metadata File for Filtered Submissions: {os.path.abspath(metadata_filepath)}\n")
         f.write(f"--------------------------------------------------\n")
     print(f"\nRun summary saved to: {summary_filename}")
 
